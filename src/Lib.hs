@@ -9,7 +9,7 @@ module Lib
 
 import qualified Dhall as D
 import qualified Dhall.Core as D
---import qualified Dhall.Map as D
+import qualified Dhall.Pretty                    as D
 import Data.Text (Text, pack)
 import Data.Text.IO as T
 import System.Environment (getArgs)
@@ -17,14 +17,43 @@ import System.Environment (getArgs)
 
 data FailNotes = FailNotes {
   failReason :: Text,
-  failResolutions :: [Text]
+  failResolutions :: [D.Natural]
 }
  deriving (Eq, Show)
-  
+
 failNotesType :: D.Type FailNotes
 failNotesType =  
-    D.record (FailNotes <$> (D.field "reason" D.strictText) <*> (D.field "resolutions" (D.list D.strictText)))
+    D.record (FailNotes <$> (D.field "reason" D.strictText) <*> (D.field "resolutions" (D.list D.natural)))
 
+newtype Currency = Currency Integer
+ deriving (Eq, Show)
+
+currencyType :: D.Type Currency
+currencyType = 
+  D.record (Currency . toInteger <$> ( ( (+) . (*100) <$> D.field "dollars" D.natural) <*> D.field "cents" D.natural))
+
+data Transaction = Transaction {
+  transactionName :: Text,
+  transactionAmount :: Currency,
+  transactionRebates :: [Rebate]
+}
+  deriving (Eq, Show)
+
+data Rebate = Rebate {
+  rebatesFrom :: Text,
+  rebateAmount :: Currency
+}
+  deriving (Eq, Show)
+
+rebateType :: D.Type Rebate
+rebateType = 
+  D.record (Rebate <$> D.field "from" D.strictText <*> D.field "amount" currencyType)
+
+transactionType :: D.Type Transaction
+transactionType =
+  D.record (Transaction <$> D.field "name" D.strictText <*> D.field "amount" currencyType <*> D.field "rebates" (D.list rebateType))
+  
+  
 data CommitmentStatus = Fail FailNotes | Success | Incomplete
  deriving (Eq, Show)
 
@@ -55,7 +84,7 @@ commitmentType = D.record (
 
 data DayPlan = DayPlan {
   planDate :: D.Natural,
-  planHabits :: [Text],
+  planTransactions :: [Transaction],
   planSchedule :: [Commitment],
   planTasks :: [Text]
 }
@@ -63,7 +92,7 @@ data DayPlan = DayPlan {
 dayPlanType :: D.Type DayPlan
 dayPlanType = D.record (
   DayPlan <$> D.field "date" D.natural
-          <*> D.field "habits" (D.list D.strictText)
+          <*> D.field "finance" (D.list transactionType)
           <*> D.field "schedule" (D.list commitmentType)
           <*> D.field "tasks" (D.list D.strictText))
 
@@ -74,7 +103,7 @@ integrity plan =
       allTasks = length $ planSchedule plan
   in fromRational $ toRational successfulTasks / toRational allTasks
 
-resolutions :: DayPlan -> [Text]
+resolutions :: DayPlan -> [D.Natural]
 resolutions plan = 
   let schedule = planSchedule plan
       failures = filter (isFail . commitmentStatus) schedule
@@ -86,11 +115,11 @@ resolutions plan =
 someFunc :: IO ()
 someFunc = do
   args <- getArgs
-  dayPlan <- D.input dayPlanType =<< T.getContents
+  dayPlan <- D.input (D.list dayPlanType) =<< T.getContents
   let result = case args of
-          ["commitmentCount"] -> pack . show . length $  planSchedule dayPlan
-          ["integrity"] -> pack . show  $  integrity dayPlan
-          ["resolutions"] -> pack . show  $ resolutions dayPlan
+          ["commitmentCount"] -> D.pretty . D.embed D.inject . length $ map planSchedule dayPlan
+          ["integrity"] -> D.pretty . D.embed D.inject $  map integrity dayPlan
+          ["resolutions"] -> D.pretty . D.embed D.inject  $ map resolutions dayPlan
           _ -> "Usage: plananalysis (commitmentCount|integrity|resolutions)"
-  T.putStrLn result
+  T.putStrLn (result)
 
