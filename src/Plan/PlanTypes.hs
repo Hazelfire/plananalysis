@@ -10,6 +10,8 @@ module Plan.PlanTypes ( DayPlan(..)
                       , isFail
                       , dayPlanType
                       , Time(..)
+                      , Transaction(..)
+                      , Currency(..)
                       ) where 
 
 import qualified Dhall as D

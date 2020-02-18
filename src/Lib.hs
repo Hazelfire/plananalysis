@@ -15,6 +15,8 @@ import Data.Text.IO as T
 import System.Environment (getArgs)
 import Plan.PlanTypes (DayPlan(..), CommitmentStatus(..), FailNotes(..), Commitment(..), isFail, dayPlanType)
 import Plan.ResolutionReports (resolutionReport)
+import Plan.FinanceReports (balanceReport)
+import Text.Read (readMaybe)
 
 
 integrity :: DayPlan -> Double
@@ -40,6 +42,9 @@ someFunc = do
           ["commitmentCount"] -> D.pretty . D.embed D.inject . length $ map planSchedule dayPlans
           ["integrity"] -> D.pretty . D.embed D.inject $  map integrity dayPlans
           ["resolutions"] -> D.pretty . D.embed D.inject  $ resolutionReport dayPlans
-          _ -> "Usage: plananalysis (commitmentCount|integrity|resolutions)"
+          ["balance", starting] -> case readMaybe starting of
+            Just startingNo -> D.pretty . D.embed D.inject  $ balanceReport startingNo dayPlans
+            Nothing -> "Starting Balance must be string"
+          _ -> "Usage: plananalysis (commitmentCount|integrity|resolutions|balance)"
   T.putStrLn (result)
 
