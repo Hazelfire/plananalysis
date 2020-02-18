@@ -12,12 +12,12 @@ module Plan.PlanTypes ( DayPlan(..)
                       , Time(..)
                       , Transaction(..)
                       , Currency(..)
+                      , Measurement(..)
+                      , MeasurementSet(..)
                       ) where 
 
 import qualified Dhall as D
-import qualified Dhall.Core as D
-import qualified Dhall.Pretty                    as D
-import Data.Text (Text, pack)
+import Data.Text (Text)
 
 
 data FailNotes = FailNotes {
@@ -99,11 +99,36 @@ commitmentType = D.record (
              <*> (D.field "starting" timeType)
              <*> D.field "status" commitmentStatusType)
 
+data Measurement = Measurement
+  { measurementMeasure :: D.Natural
+  , measurementAmount :: D.Natural
+  , measurementResolutions :: [D.Natural]
+  }
+
+measurementType :: D.Type Measurement
+measurementType = D.record (
+  Measurement <$> D.field "measure" D.natural
+              <*> D.field "amount" D.natural
+              <*> D.field "resolutions" (D.list D.natural)
+  )
+
+data MeasurementSet = MeasurementSet
+  { msTime :: Time
+  , msMeasurements :: [Measurement]
+  }
+
+measurementSetType :: D.Type MeasurementSet
+measurementSetType = D.record (
+  MeasurementSet <$> D.field "time" timeType
+                 <*> D.field "measurements" (D.list measurementType)
+  )
+
 data DayPlan = DayPlan {
   planDate :: D.Natural,
   planTransactions :: [Transaction],
   planSchedule :: [Commitment],
-  planTasks :: [Text]
+  planTasks :: [Text],
+  planMeasurements :: [MeasurementSet]
 }
 
 dayPlanType :: D.Type DayPlan
@@ -111,5 +136,7 @@ dayPlanType = D.record (
   DayPlan <$> D.field "date" D.natural
           <*> D.field "finance" (D.list transactionType)
           <*> D.field "schedule" (D.list commitmentType)
-          <*> D.field "tasks" (D.list D.strictText))
+          <*> D.field "tasks" (D.list D.strictText)
+          <*> D.field "measurements" (D.list measurementSetType)
+   )
 
