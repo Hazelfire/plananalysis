@@ -4,6 +4,7 @@ module Plan.TimeTypes (Date(..), Time(..), timeType, dateType, datetimeType, Dat
 
 import qualified Dhall as D
 import Data.Ord (Ordering(..))
+import Text.Printf (printf)
 
 data Date = Date {
   dateDay :: Integer,
@@ -25,7 +26,7 @@ instance Ord Date where
     roughDateToDays date = dateDay date + dateMonth date * 35 + dateYear date * 12
 
 instance Show Date where
-  show d = show (dateDay d) <> "/" <> show (dateMonth d)<> "/" <> show (dateYear d)
+  show d = printf "%02d" (dateDay d) <> "/" <> printf "%02d" (dateMonth d)<> "/" <> show (dateYear d)
 
 dateType :: D.Type Date
 dateType = D.record (
@@ -53,7 +54,7 @@ instance Ord Time where
     in result
   
 instance Show Time where
-  show t = show (timeHour t) <> ":" <> show (timeMinute t)
+  show t = printf "%02d" (timeHour t) <> ":" <> printf "%02d" (timeMinute t)
 
 timeType :: D.Type Time
 timeType = D.record (

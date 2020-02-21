@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Plan.CalendarReport where
 
 import Plan.TaskTypes (PlanTopic(..), Event(..))
@@ -5,7 +7,7 @@ import qualified Data.Text as T
 import Data.List (sortOn)
 
 showEvent :: Event -> T.Text
-showEvent event = eventName event <> (T.pack $ " (" <> show (eventStarting event) <> " to " <> show (eventEnding event) <> ")\n" )
+showEvent event = (T.pack $ "(" <> show (eventStarting event) <> " to " <> show (eventEnding event) <> ") " )<> eventName event <> "\n"
 
 calendarReport :: [PlanTopic] -> T.Text
 calendarReport topics =
