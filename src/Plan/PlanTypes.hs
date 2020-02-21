@@ -13,10 +13,12 @@ module Plan.PlanTypes ( DayPlan(..)
                       , Transaction(..)
                       , Currency(..)
                       , Measurement(..)
+                      , currencyToCents
                       , MeasurementSet(..)
                       ) where 
 
 import qualified Dhall as D
+import Plan.TimeTypes (Time(..), timeType)
 import Data.Text (Text)
 
 
@@ -37,10 +39,14 @@ currencyType :: D.Type Currency
 currencyType = 
   D.record (Currency . toInteger <$> ( ( (+) . (*100) <$> D.field "dollars" D.natural) <*> D.field "cents" D.natural))
 
+currencyToCents :: Currency -> Integer
+currencyToCents (Currency c) = c
+
 data Transaction = Transaction {
   transactionName :: Text,
   transactionAmount :: Currency,
-  transactionRebates :: [Rebate]
+  transactionRebates :: [Rebate],
+  transactionClass :: D.Natural
 }
   deriving (Eq, Show)
 
@@ -55,8 +61,12 @@ rebateType =
   D.record (Rebate <$> D.field "from" D.strictText <*> D.field "amount" currencyType)
 
 transactionType :: D.Type Transaction
-transactionType =
-  D.record (Transaction <$> D.field "name" D.strictText <*> D.field "amount" currencyType <*> D.field "rebates" (D.list rebateType))
+transactionType = D.record (
+  Transaction <$> D.field "name" D.strictText 
+              <*> D.field "amount" currencyType
+              <*> D.field "rebates" (D.list rebateType)
+              <*> D.field "class" D.natural
+  )
   
   
 data CommitmentStatus = Fail FailNotes | Success | Incomplete
@@ -73,17 +83,6 @@ commitmentStatusType = D.union
   <> (Incomplete <$ D.constructor "Incomplete" D.unit)
   )
 
-data Time = Time {
-  timeHour :: Integer,
-  timeMinute :: Integer
-}
-
-timeType :: D.Type Time
-timeType = D.record (
-  Time . toInteger 
-    <$> D.field "hour" D.natural
-    <*> (toInteger <$> D.field "minute" D.natural)
-  )
 
 data Commitment = Commitment {
   commitmentName :: Text,

@@ -9,14 +9,14 @@ module Lib
 
 import qualified Dhall as D
 import qualified Dhall.Core as D
-import qualified Dhall.Pretty                    as D
-import Data.Text (Text, pack)
 import Data.Text.IO as T
+import Data.Text (Text)
 import System.Environment (getArgs)
-import Plan.PlanTypes (DayPlan(..), CommitmentStatus(..), FailNotes(..), Commitment(..), isFail, dayPlanType)
+import Plan.PlanTypes (DayPlan(..), CommitmentStatus(..), Commitment(..), dayPlanType)
+import Plan.TaskTypes (planTopicType)
 import Plan.ResolutionReports (resolutionReport)
-import Plan.FinanceReports (balanceReport)
-import Text.Read (readMaybe)
+import Plan.FinanceReports (expenseReport)
+import Plan.CalendarReport (calendarReport)
 
 
 integrity :: DayPlan -> Double
@@ -25,26 +25,45 @@ integrity plan =
       allTasks = length $ planSchedule plan
   in fromRational $ toRational successfulTasks / toRational allTasks
 
-resolutions :: DayPlan -> [D.Natural]
-resolutions plan = 
-  let schedule = planSchedule plan
-      failures = filter (isFail . commitmentStatus) schedule
-      mapResolutions = \case
-        (Fail (FailNotes _ resolutions)) -> resolutions
-        _ -> []
-   in concat $ map (mapResolutions . commitmentStatus) schedule
+
+runPlanCommand :: [String] -> IO (Maybe Text)
+runPlanCommand args = 
+  let function = case args of
+        ["commitmentCount"] -> Just $ D.pretty . D.embed D.inject . length . map planSchedule
+        ["integrity"] -> Just $ D.pretty . D.embed D.inject  .  map integrity
+        ["resolutions"] -> Just $ D.pretty . D.embed D.inject . resolutionReport
+        ["expenses"] -> Just $ D.pretty . D.embed D.inject . expenseReport
+        _ -> Nothing
+  in do
+    case function of
+      Just func -> do
+        dayPlans <- D.input (D.list dayPlanType) =<< T.getContents
+        return . Just $ func dayPlans
+      Nothing -> return Nothing
+
+
+runTaskCommand :: [String] -> IO (Maybe Text)
+runTaskCommand args = 
+  let function = case args of
+        ["calendar"] -> Just $ D.pretty . D.embed D.inject . calendarReport
+        _ -> Nothing
+  in do
+    case function of
+      Just func -> do
+        planTopics <- D.input (D.list planTopicType) =<< T.getContents
+        return . Just $ func planTopics
+      Nothing -> return Nothing
+
 
 someFunc :: IO ()
 someFunc = do
   args <- getArgs
-  dayPlans <- D.input (D.list dayPlanType) =<< T.getContents
-  let result = case args of
-          ["commitmentCount"] -> D.pretty . D.embed D.inject . length $ map planSchedule dayPlans
-          ["integrity"] -> D.pretty . D.embed D.inject $  map integrity dayPlans
-          ["resolutions"] -> D.pretty . D.embed D.inject  $ resolutionReport dayPlans
-          ["balance", starting] -> case readMaybe starting of
-            Just startingNo -> D.pretty . D.embed D.inject  $ balanceReport startingNo dayPlans
-            Nothing -> "Starting Balance must be string"
-          _ -> "Usage: plananalysis (commitmentCount|integrity|resolutions|balance)"
-  T.putStrLn (result)
-
+  result <- runPlanCommand args
+  case result of
+    Just r -> T.putStrLn r
+    Nothing -> do
+      result2 <- runTaskCommand args
+      case result2 of
+        Just r2 -> T.putStrLn r2
+        Nothing -> T.putStrLn "Usage: plananalysis (commitmentCount|integrity|resolutions|expenses|calendar)"
+    

@@ -1,22 +1,32 @@
 {-
  - This module contains reports that can be made for finance
  -}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 
-module Plan.FinanceReports (balanceReport) where
+module Plan.FinanceReports (expenseReport) where
 
 import qualified Dhall as D
-import qualified Dhall.Core as D
-import Plan.PlanTypes (DayPlan(..), Transaction(..), Currency(..))
+import Plan.PlanTypes (DayPlan(..), Transaction(..), currencyToCents)
 
-currencyToCents :: Currency -> Integer
-currencyToCents (Currency cents) = cents
 
-balanceReport 
-  :: Integer -- Starting Balance (in cents)
-  -> [DayPlan] -- Transactions made (in order for which they were made)
-  -> [Integer] -- Cumulative Balance
-balanceReport starting (p:ps) = 
-  let amountSpent = sum $ map (currencyToCents . transactionAmount) (planTransactions p)
-  in
-  starting : balanceReport (starting - amountSpent) ps
-balanceReport starting [] = [starting]
+
+data TransactionReport = TransactionReport {
+  trDay :: D.Natural,
+  trAmount :: Integer,
+  trClass :: D.Natural
+}
+ deriving (D.Generic, D.Inject)
+
+
+
+expenseReport 
+  :: [DayPlan] -- Transactions made (in order for which they were made)
+  -> [TransactionReport]  -- Cumulative Balance
+expenseReport ps = concat $ map planToReport ps
+ where
+  planToReport :: DayPlan -> [TransactionReport]
+  planToReport p = map (transactionToReport (planDate p)) (planTransactions p)
+
+  transactionToReport :: D.Natural -> Transaction -> TransactionReport
+  transactionToReport day t = TransactionReport day (currencyToCents $ transactionAmount t) (transactionClass t)
