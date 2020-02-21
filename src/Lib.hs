@@ -17,6 +17,7 @@ import Plan.TaskTypes (planTopicType)
 import Plan.ResolutionReports (resolutionReport)
 import Plan.FinanceReports (expenseReport)
 import Plan.CalendarReport (calendarReport)
+import Plan.TaskReports (taskReport, planTaskReport)
 
 
 integrity :: DayPlan -> Double
@@ -46,6 +47,8 @@ runTaskCommand :: [String] -> IO (Maybe Text)
 runTaskCommand args = 
   let function = case args of
         ["calendar"] -> Just $ D.pretty . D.embed D.inject . calendarReport
+        ["planTasks"] -> Just $ D.pretty . D.embed D.inject . planTaskReport
+        ["tasks"] -> Just $ D.pretty . D.embed D.inject . taskReport
         _ -> Nothing
   in do
     case function of
@@ -65,5 +68,5 @@ someFunc = do
       result2 <- runTaskCommand args
       case result2 of
         Just r2 -> T.putStrLn r2
-        Nothing -> T.putStrLn "Usage: plananalysis (commitmentCount|integrity|resolutions|expenses|calendar)"
+        Nothing -> T.putStrLn "Usage: plananalysis (commitmentCount|integrity|resolutions|expenses|calendar|tasks|planTasks)"
     
